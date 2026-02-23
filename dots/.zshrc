@@ -27,12 +27,35 @@ zinit light zsh-users/zsh-autosuggestions
 zinit light zsh-users/zsh-completions
 zinit light zdharma/history-search-multi-word
 
+### environmental value
+export PATH=$PATH:/snap/bin
+export PATH="$HOME/.local/bin:$PATH"
+
 ### service activation
+setopt hist_ignore_all_dups             # 重複を記録しない
+setopt hist_ignore_space                # スペース始まりのコマンドは記録しない
+setopt hist_reduce_blanks               # 余分なスペース排除
+setopt hist_verify                      # historyから実行時に確認
+setopt share_history                    # 履歴ファイルを共有
+setopt extended_history                 # zshの開始終了を記録
 eval "$(zoxide init zsh)"
 
 ### mise
 eval "$(/usr/bin/mise activate zsh)"
 eval "$(starship init zsh)"
+
+# zsh hooks
+zshaddhistory() {
+    [[ "$?" == 0 ]]
+}
+
+# Bitwarden認証情報をローカルから読む
+[ -f ~/.env.secret ] && source ~/.env.secret
+
+# bwセッションを取得する関数
+bw_unlock() {
+    export BW_SESSION=$(bw unlock --raw)
+}
 
 # fzf methods
 # fbr - checkout git branch (including remote branches)
@@ -43,3 +66,5 @@ fbr() {
            fzf-tmux -d $(( 2 + $(wc -l <<< "$branches") )) +m) &&
   git switch $(echo "$branch" | sed "s/.* //" | sed "s#remotes/[^/]*/##")
 }
+
+
