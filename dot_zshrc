@@ -31,6 +31,11 @@ zinit light zdharma/history-search-multi-word
 export PATH=$PATH:/snap/bin
 export PATH="$HOME/.local/bin:$PATH"
 
+### history
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=100000
+SAVEHIST=100000
+
 ### service activation
 setopt hist_ignore_all_dups             # 重複を記録しない
 setopt hist_ignore_space                # スペース始まりのコマンドは記録しない

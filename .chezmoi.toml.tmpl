@@ -1,0 +1,5 @@
+sourceDir = {{ .chezmoi.sourceDir | quote }}
+
+[data]
+  bwClientId     = {{ promptStringOnce . "bwClientId"     "Bitwarden Client ID" | quote }}
+  bwClientSecret = {{ promptStringOnce . "bwClientSecret" "Bitwarden Client Secret" | quote }}

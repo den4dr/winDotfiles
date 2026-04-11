@@ -1,0 +1,5 @@
+[tools]
+chezmoi = "latest"
+
+[env]
+CHEZMOI_SOURCE_DIR = "{{config_root}}"

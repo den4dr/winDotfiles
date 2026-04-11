@@ -1,0 +1,2 @@
+# chezmoi が生成するローカル設定（secrets含む）
+.chezmoi.toml
