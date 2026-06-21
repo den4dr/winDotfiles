@@ -5,3 +5,4 @@
 | # | Title |
 |---|---|
 | [0001](0001-powershell-profile-wiring.md) | PowerShell プロファイルの配線方式 |
+| [0002](0002-claude-config-management.md) | ~/.claude 設定の管理方針 |
