@@ -1,0 +1,33 @@
+nyagos.prompt = function(this)
+  local prompt = ""
+  if nyagos.which("starship") then
+    prompt = prompt .. nyagos.eval("starship prompt 2> nul") ..  "$e[37;1m" .. " "
+  	return nyagos.default_prompt(prompt,"")
+  end
+  return nyagos.default_prompt("$e[49;36;1m"..this.."$e[37;1m","")
+end
+
+-- zoxide関連
+nyagos.alias.z = function (args)
+    local rest = args[1]
+    local path = rest
+    if (string.len(rest) > 1) then
+        path = nyagos.eval("zoxide query --exclude '".. (nyagos.getwd()) .."' -- " .. rest)
+    end
+
+    nyagos.chdir(path)
+end
+nyagos.alias.zi=function(args)
+    local rest = args[1]
+    if rest==nil then
+        rest = ""
+    end
+    path = nyagos.eval("zoxide query -i -- " .. rest .. "| fzf" )
+    nyagos.chdir(path)
+end
+
+nyagos.postexechook = function(args)
+      if "cd" == args[1] then
+          nyagos.eval("zoxide add -- " .. nyagos.getwd())
+      end
+end
