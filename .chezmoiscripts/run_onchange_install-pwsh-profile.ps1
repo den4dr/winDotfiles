@@ -1,4 +1,4 @@
-$stub = '. "$HOME\.config\powershell\profile.ps1"'
+$stub = '$p = "$HOME\.config\powershell\profile.ps1"; if (Test-Path $p) { . $p }'
 $target = $PROFILE.CurrentUserAllHosts
 
 New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
