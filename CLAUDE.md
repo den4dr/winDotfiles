@@ -13,4 +13,6 @@ Windows 環境（PowerShell）向けの個人 dotfiles リポジトリ。**chezm
 
 ## Design Decisions
 
-設計判断の経緯は ADR として `docs/decisions/` に記録している。仕組みを変更する前に `docs/decisions/README.md`（一覧）を参照すること。
+設計判断の経緯は ADR として `docs/decisions/` に記録している。仕組みを変更する前に、以下の一覧から該当 ADR を読むこと。
+
+@docs/decisions/README.md
