@@ -39,3 +39,4 @@ zellij / PowerShell 環境を整える流れで、Claude Code の `~/.claude` �
 - secret・状態・キャッシュは個別 `chezmoi add` のため巻き込まれない（ディレクトリごと add しない）。
 - `settings.json` は `/model` 等で差分が出うる。ドリフトは `chezmoi status` で検知し、必要時に `re-add` する前提。
 - `.credentials.json` は将来も管理対象外。
+- `settings.json` の `env.CLAUDE_CODE_USE_POWERSHELL_TOOL=1` と `defaultShell: powershell` は、PowerShell tool が現状ロールアウトで暗黙有効になっているのを**明示固定**するもの。ロールアウト状態に依存せず全マシンで PowerShell 主シェルを再現するために管理ファイルへ書き込む。なお同 tool は PowerShell プロファイルをロードしないため、profile 側の初期化（[[0001-powershell-profile-wiring]]）は tool 実行コマンドには効かない。
