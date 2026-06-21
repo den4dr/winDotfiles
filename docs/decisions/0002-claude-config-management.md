@@ -23,7 +23,7 @@ zellij / PowerShell 環境を整える流れで、Claude Code の `~/.claude` �
 `settings.json` と `statusline.sh` を **素の chezmoi ファイルとして管理**する（テンプレート化・マージ処理なし）。
 
 - `dot_claude/settings.json` → `~/.claude/settings.json`
-- `dot_claude/executable_statusline.sh` → `~/.claude/statusline.sh`（chezmoi が実行ビットを検知して `executable_` 接頭辞が付く）
+- `dot_claude/statusline.ps1` → `~/.claude/statusline.ps1`（PowerShell 7 スクリプト。`pwsh -File` で起動するため実行ビット不要、`executable_` 接頭辞なし。詳細は [[0003-statusline-script]]）
 
 揮発フィールドによるドリフトは**許容**し、気づいたら `chezmoi re-add ~/.claude/settings.json` で取り込み直す運用とする。基本設定の書き換え頻度は低く、自動化の複雑さに見合わないため。
 
@@ -31,11 +31,11 @@ zellij / PowerShell 環境を整える流れで、Claude Code の `~/.claude` �
 
 - **`modify_` スクリプトでマージ** — 現在のライブファイルを stdin で受け取り、管理キー（statusLine / marketplaces / enabledPlugins）だけ上書きし揮発キーを温存する。ドリフトを原理的に消せて筋は良いが、jq 依存とスクリプト保守が要る。書き換え頻度が低い今は過剰。却下。
 - **`ConfigChange` hook で監視** — matcher `user_settings` で `~/.claude/settings.json` 変更を検知し通知/拒否できる。だが (1) ファイルウォッチャ方式ゆえ `/model` 等の揮発書き込みでも発火しノイズになる、(2) 監視 hook 自体が監視対象ファイル内に入る鶏卵問題、(3) セッション中しか動かない。即時アラートが要るときの補助どまりで、主機構には採らない。却下。
-- **旧 `statusline-command.{js,ps1,sh}` も管理** — statusLine を `statusline.sh` に切り替えたため、これらは未配線の旧実装。管理対象に含めない。
+- **旧 `statusline-command.{js,ps1,sh}` も管理** — bash / Node.js / ps1 各方式の試行錯誤で生成したファイル。`statusline.ps1` に統一したため削除済み。管理対象に含めない。
 
 ## Consequences
 
-- 手書きの2ファイル（`settings.json` / `statusline.sh`）が diff / 他マシン再現の対象になる。
+- 手書きの2ファイル（`settings.json` / `statusline.ps1`）が diff / 他マシン再現の対象になる。
 - secret・状態・キャッシュは個別 `chezmoi add` のため巻き込まれない（ディレクトリごと add しない）。
 - `settings.json` は `/model` 等で差分が出うる。ドリフトは `chezmoi status` で検知し、必要時に `re-add` する前提。
 - `.credentials.json` は将来も管理対象外。
