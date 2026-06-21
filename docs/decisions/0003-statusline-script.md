@@ -28,14 +28,28 @@ Windows では Git Bash がある場合は Git Bash 経由、なければ PowerS
 5.1 はバックティック-e（`` `e ``）をエスケープ文字として解釈しない（リテラル `e` として出力する）。
 PowerShell 7（`pwsh`）のみが `` `e `` → ESC（0x1B）に展開するため、ANSI カラーコードに必須。
 
-### 2. stdin の読み取りは `$input | Out-String | ConvertFrom-Json`
+### 2. stdin は UTF-8 の `StreamReader` で生読みする（`$input` は使わない）
 
-`[Console]::In.ReadToEnd()` は EOF が来るまでブロックする。
-Claude Code が statusLine コマンドを起動する際、stdin の EOF が即座に来るとは限らず、
-これを使うとスクリプトが応答なしになって何も表示されなかった。
+```powershell
+$reader = [System.IO.StreamReader]::new([Console]::OpenStandardInput(), [System.Text.UTF8Encoding]::new($false))
+$json = $reader.ReadToEnd() | ConvertFrom-Json
+```
 
-PowerShell の自動変数 `$input` はパイプライン入力を遅延評価で保持しており、
-`Out-String` でまとめて文字列化してから `ConvertFrom-Json` に渡すのが正しいパターン。
+当初は `$input | Out-String | ConvertFrom-Json` を使っていた（`[Console]::In.ReadToEnd()` は
+EOF を待ってブロックするとされたため）。しかしこれは **文字エンコーディングの罠** を踏む。
+
+Claude Code が `pwsh` を spawn する際、入力コードページは OS 既定になる
+（日本語 Windows では CP932/Shift_JIS）。`$input` はこのコードページで **デコード済み** の状態でスクリプトに渡るため、
+JSON 内の非 ASCII（例：自動生成される日本語の `session_name`）が UTF-8→CP932 で誤デコードされ、
+文字列の終端 `"` が壊れて `ConvertFrom-Json: Unterminated string` で失敗する。
+`$json` が null になり、ディレクトリ・モデル・コンテキスト使用量など JSON 由来のセグメントだけが消える
+（git と時刻は JSON 非依存なので残る）。**新規セッションは `session_name` が無いため再現せず、
+セッションを resume したときだけ発症する** ため原因が分かりにくい。
+
+`$input` はスクリプト本体が走る前にデコードされるので、冒頭で `[Console]::InputEncoding` を
+UTF-8 にしても手遅れ（実測で解析失敗のまま）。標準入力ストリームを UTF-8 指定の `StreamReader` で
+自前に読むのが正しい。statusLine の stdin は Claude Code がリダイレクトで渡し書き込み後にクローズするため、
+`ReadToEnd()` でも EOF が来てブロックしない（当初の懸念は対話コンソールでの話）。
 
 ### 3. `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` をスクリプト冒頭で設定する
 
@@ -43,6 +57,38 @@ PowerShell のデフォルト出力エンコーディングは OS ロケール�
 Windows 環境では BOM なし UTF-16 LE や Shift_JIS になる場合がある。
 Nerd Font グリフ（U+E0B0 等）はこれらのエンコーディングで表現できず `?` になる。
 スクリプト冒頭で明示的に UTF-8 を設定することで回避する。
+
+### 4. git 状態は `session_id` + `cwd` でキャッシュする（5秒 TTL）
+
+statusLine は「アシスタントメッセージ後／compact後／モード変更時」のイベントごと（300ms デバウンス）
+および `refreshInterval` のタイマーごとに起動され、その都度 `git rev-parse` + `git status` を実行していた。
+デバウンス境界で短時間に連続実行されると git 呼び出しが重複する。
+
+`$env:TEMP` に `cc-statusline-<session_id>-<hash>.txt` を置き、5秒以内なら git を再実行せずキャッシュを読む。
+キャッシュキーは公式ドキュメント推奨どおり `session_id`（セッション内で安定・セッション間で一意）に加え、
+`cwd` も含める（同一セッションで作業ディレクトリが変わっても他ディレクトリの git 状態を誤表示しない）。
+ファイル名衝突を避けるためキー文字列を MD5 でハッシュ化する
+（`String.GetHashCode()` は .NET Core ではプロセス起動ごとにランダム化され、毎回別プロセスの statusLine では安定しないため使えない）。
+
+### 5. `$home` は読み取り専用の自動変数なので使わない
+
+ディレクトリ短縮で `$home = $env:USERPROFILE...` と代入していたが、
+`$HOME` は PowerShell の自動変数（読み取り専用）で、`Cannot overwrite variable HOME` エラーが毎回 stderr に出ていた
+（stdout は正常に描画されるため UI 上は気づきにくい）。`$userHome` にリネームして回避。
+
+### 6. worktree 名は `workspace.git_worktree` を使う（git 呼び出し不要）
+
+linked worktree 内にいるとき、Claude Code が JSON で `workspace.git_worktree` に worktree 名を渡す
+（main tree では absent）。自前で `git worktree list` を叩かずに済む。
+
+### 7. `refreshInterval` は使わない（タイマー起動時は stdin が空になる）
+
+時計・rate limit をアイドル時にも更新する目的で `settings.json` の `statusLine.refreshInterval`（60秒）を一度設定したが、
+**タイマー起動時はコマンドに JSON が stdin で渡らない**（実測）。その結果 `$json` が null になり、
+ディレクトリ名・モデル・コンテキスト使用量など JSON 由来のセグメントだけが消え、
+git（直接コマンド）と時刻（`Get-Date`）のみ残る壊れた表示がアイドル中ずっと残った。
+イベント起動（メッセージ後・compact後・モード変更時）では JSON が渡るため、`refreshInterval` を外して
+イベント駆動のみに戻した。時計はメッセージごとに更新されれば十分と判断。
 
 ## Alternatives considered
 
